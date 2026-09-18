@@ -1,8 +1,5 @@
 Copyright (c) 2025 Alan Robinson. All Rights reserved.
 
-
-Copyright (c) 2025 Alan Robinson.
-
 Source code is available for inspection not for forking. Once code
 shape is more stable I intend to switch to open source. 
 
