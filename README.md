@@ -2,9 +2,9 @@
 
 ## Mission
 
-Vii is a desktop chat window that does real work on your files.
+Vii is a desktop chat window that has built in access to do real work on your files.
 
-It feels like a regular chatbot window: one thread, minimal chrome, typed or spoken text. But underneath it has native read/write access to the folders you grant - as many or as few as you choose. You describe what you want; files change on disk; if the model got it wrong, you say so and it puts them back.
+It feels like a regular chatbot window: text first, minimal chrome. But underneath it has native read/write access to the folders you grant - as many or as few as you choose. You describe what you want; the model of your choice does the work, and if the model got it wrong, you say so and it puts them back.
 
 <img width="1920" height="1008" alt="image" src="https://github.com/user-attachments/assets/3f8f5733-04ff-4659-8982-cadc27173f10" />
 
