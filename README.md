@@ -6,7 +6,7 @@ Vii is a desktop chat window that does real work on your files.
 
 It feels like a regular chatbot window: one thread, minimal chrome, typed or spoken text. But underneath it has native read/write access to the folders you grant - as many or as few as you choose. You describe what you want; files change on disk; if the model got it wrong, you say so and it puts them back.
 
-<img width="1920" height="1008" alt="image" src="https://github.com/user-attachments/assets/5421a6cd-8a2e-459f-8803-069484f5b07a" />
+<img width="1920" height="1008" alt="image" src="https://github.com/user-attachments/assets/3f8f5733-04ff-4659-8982-cadc27173f10" />
 
 
 ## Who It's For
@@ -17,11 +17,11 @@ People who already hold an LLM API key and are tired of terminals. Developers, r
 
 **Stay chat-first, with real edit power.**
 
-Vii is not another CLI agent. The foil is opencode: capable, provider-agnostic, and maddening to operate — allow everything OR a permission prompt on every action, a shell command to evaluate every three seconds. Vii rejects that whole ceremony, not by being reckless, but by moving the safety somewhere else:
+Vii is not another CLI agent. The foil is opencode: capable, provider-agnostic, but maddening to operate — allow everything OR face a permission prompt on every action, and a shell command to evaluate every three seconds. Vii rejects this approach, not by being reckless, but by moving the safety somewhere else:
 
 - **Permission is a scope decision, not a per-edit question.** You decide once what the model may touch and how far it may go; you are never asked again mid-task.
 - **The agent has no shell.** It works through a fixed set of typed tools. You never have to judge whether a command is safe, because there is no command.
-- **Every write is backed up first.** The worst thing the model can do is a bad edit.
+- **Every write is backed up first.** The worst thing the model can do is a bad edit and you can recover.
 
 ## Positioning
 
@@ -77,11 +77,11 @@ The model's entire capability is the native toolset below. There is no `execute`
 
 ## Current State
 
-- Native tool loop with backup-on-write, delivered and in daily use.
-- Mode and skill engine: dynamic prompt composition, `/chat` `/plan` `/act` triggers, `{[mode=...]}` machine tokens, sticky mode across turns.
-- Projects and sessions: hierarchical tree, per-project directory bindings and default mode, inline rename, inspectable details dialogs.
-- Voice input via Web Speech API (`Ctrl+D`), live feedback.
-- Multi-model routing: per-chat model switch, thinking toggle honoring mandatory flags, effort values from OpenRouter catalog.
-- Stream-tolerant markdown (`md.js`); auto-scroll yields to the reader and reacquires via jump-to-latest.
+- Native tool loop with backup-on-write
+- Mode `/chat` `/plan` `/act` triggers
+- Projects and sessions: hierarchical tree, per-project directory bindings
+- Voice input via Web Speech API (`Ctrl+D`) - currently offline due to recent webview2 changes made by Microsoft 9/14/26
+- Multi-model routing: open router/openai and gemini as first class citizens
+- File tab for easy copy and past to chat support
 - Single Windows binary (lightweight Neutralinojs, not a bloated electron app).
 
