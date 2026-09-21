@@ -77,6 +77,8 @@ The model's entire capability is the native toolset below. There is no `execute`
 
 ## Current State
 
+[See how it's evolved here.]([url](https://github.com/alanbork/viiDesktop/wiki/Visual-changelog))
+
 - Native tool loop with backup-on-write
 - Mode `/chat` `/plan` `/act` triggers
 - Projects and sessions: hierarchical tree, per-project directory bindings
