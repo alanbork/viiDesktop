@@ -8,6 +8,7 @@ It feels like a regular chatbot window: text first, minimal chrome. But undernea
 
 <img width="1920" height="1008" alt="image" src="https://github.com/user-attachments/assets/3f8f5733-04ff-4659-8982-cadc27173f10" />
 
+[See how it's evolved here.](https://github.com/alanbork/viiDesktop/wiki/Visual-changelog)
 
 ## Who It's For
 
@@ -77,7 +78,7 @@ The model's entire capability is the native toolset below. There is no `execute`
 
 ## Current State
 
-[See how it's evolved here.]([url](https://github.com/alanbork/viiDesktop/wiki/Visual-changelog))
+
 
 - Native tool loop with backup-on-write
 - Mode `/chat` `/plan` `/act` triggers
