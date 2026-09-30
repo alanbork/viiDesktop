@@ -1,90 +1,110 @@
-# Vii Desktop — Project Overview
+# Vii Desktop
 
-## Mission
+**A chat window that does real work on your files.**
 
-Vii is a desktop chat window that has built in access to do real work on your files.
+Vii feels like a regular chatbot: text first, minimal chrome. But underneath it has native read/write access to the folders you grant, as many or as few as you choose. You describe what you want, the model does the work, and if it got it wrong, you say so and it puts things back.
 
-It feels like a regular chatbot window: text first, minimal chrome. But underneath it has native read/write access to the folders you grant - as many or as few as you choose. You describe what you want; the model of your choice does the work, and if the model got it wrong, you say so and it puts them back.
+<img width="1920" height="1008" alt="Vii Desktop screenshot" src="https://github.com/user-attachments/assets/3f8f5733-04ff-4659-8982-cadc27173f10" />
 
-<img width="1920" height="1008" alt="image" src="https://github.com/user-attachments/assets/3f8f5733-04ff-4659-8982-cadc27173f10" />
+[Visual changelog →](https://github.com/alanbork/viiDesktop/wiki/Visual-changelog)
 
-[See how it's evolved here.](https://github.com/alanbork/viiDesktop/wiki/Visual-changelog)
+---
 
 ## Who It's For
 
-People who already hold an LLM API key and are tired of terminals. Developers, researchers, writers who live in markdown, data people, power users — anyone who finds Claude Desktop too limited for file work, but opencode exhausting to supervise. Vii does not try to onboard users who have never seen an API key; it is a DIY project with no hosted tier, and the audience is chosen honestly to match.
+People who already hold an LLM API key and are tired of terminals: developers, researchers, writers in markdown, data people, power users. If **Claude Desktop** is too limited for file work but **opencode** is exhausting to supervise, Vii is aimed at you.
 
-## Guiding Goal
+It's a DIY project with no hosted tier and no onboarding for people who've never seen an API key. The audience is chosen honestly to match.
 
-**Stay chat-first, with real edit power.**
+---
 
-Vii is not another CLI agent. The foil is opencode: capable, provider-agnostic, but maddening to operate — allow everything OR face a permission prompt on every action, and a shell command to evaluate every three seconds. Vii rejects this approach, not by being reckless, but by moving the safety somewhere else:
+## The Idea: Chat-First, With Real Edit Power
 
-- **Permission is a scope decision, not a per-edit question.** You decide once what the model may touch and how far it may go; you are never asked again mid-task.
-- **The agent has no shell.** It works through a fixed set of typed tools. You never have to judge whether a command is safe, because there is no command.
-- **Every write is backed up first.** The worst thing the model can do is a bad edit and you can recover.
+Vii is not another CLI agent. The foil is opencode: capable, provider-agnostic, and maddening to operate, with a choice between allowing everything and a permission prompt on every action. Vii drops that ceremony by moving safety elsewhere:
 
-## Positioning
+- **Permission is a scope decision, not a per-edit question.** When the model reaches outside what you've granted, you get one card offering scopes (this turn, this chat, this project, forever) with a matching deny at each. Answer once; the rest of the task runs without asking again.
+- **The agent has no shell.** It works through a fixed set of typed tools, so you never have to judge whether a command is safe. There is no command.
+- **Every write is backed up first.** The worst the model can do is a bad edit, and you can recover from it.
 
 | | Claude Desktop | opencode | Vii |
 | :--- | :--- | :--- | :--- |
-| Interaction | Chat, voice | Terminal, slash commands | Chat, voice |
-| File access | None/MCP soup | Full, via shell | Full, when you want it |
+| Interaction | Chat, voice | Terminal, slash commands | Chat |
+| File access | None / MCP soup | Full, via shell | Full, when you want it |
 | Safety model | n/a | Approve each action or trust everything | Scope grants + mode ceiling + backup |
-| Undo | n/a | `/undo`, requires git repo | Automatic backup, no git, conversational restore |
+| Undo | n/a | `/undo`, needs git | Automatic backup, no git needed |
 | Provider | Anthropic only | Any | Any OpenAI-compatible endpoint, plus Gemini |
 | Shell for the agent | No | Yes | Never |
+| Install | Desktop installer | Node + CLI | One Windows exe, nothing to install |
 
-## Core Pillars
+---
 
-### 1. Mode Ceiling — Chat / Plan / Act
+## How It Keeps You in Control
 
-| Mode | Indicator | Capabilities |
-| :--- | :--- | :--- |
-| **Chat** | 💬 Gray | Conversation only. File tools are omitted from the model loop entirely. |
-| **Plan** | 🔵 Blue | Read-only. Inspect, search, and plan; no disk mutation. |
-| **Act** | 🟠 Orange | Full read/write within granted directories. |
+### Three modes, one hard ceiling
 
-The mode is a hard ceiling, enforced before permissions. Switch via the composer dropdown, a project default, or three mode words (`/chat`, `/plan`, `/act`) — the only command vocabulary in the app, and even those have a dropdown.
+| Mode | What it means |
+| :--- | :--- |
+| 💬 **Chat** | No filesystem at all. |
+| 🔵 **Plan** | Read-only. Inspect, search, and plan, but no writes. |
+| 🟠 **Act** | Full read/write within the folders you've granted. |
 
-### 2. Scoped Grants
+Switch from the composer, set a default per project, or type `/chat`, `/plan`, `/act`. The mode is a hard ceiling: nothing the model says or tries can exceed it.
 
-Directory access is granted at one of four scopes: **Once** (single operation), **This Chat** (dies with the conversation), **Project** (inherited by every chat under it), **Global** (Settings). With decently clever agents, just give full read / write access scoped to project and other work folders and occasionally choose to undo things you didn't like. Or for less capable agents, scope exactly which files they can read and write.
+### Grants you can see
 
+Access is deny-by-default. Grant it for a single turn, a chat, a project, or globally, and every level has a matching deny. Each project's workspace folder is implicitly open to that project's chats. A permissions view in every chat and project dialog shows exactly what the model can reach and where each grant came from, so you can revoke it at the source.
 
-### 3. No Shell for the Agent
+A practical rule: with a capable model, give full read/write to your project and work folders and occasionally undo something you didn't like. With a weaker model, scope it to exactly the files it should touch.
 
-The model's entire capability is the native toolset below. There is no `execute`, no `bash`, no escape hatch. A `!` prefix lets the *user* run a shell command from the composer; the agent is never given this ability, by design and permanently.
+### No shell, ever
 
-### 4. Automatic Backup and Conversational Restore
+The model's entire capability is a small set of typed tools: read, search, list, edit, write. If a model reaches for `bash` or `powershell`, it's told plainly that there's no shell here. The app can launch things (open a file, open Explorer, run a script), but only when *you* click it.
 
-- Every write tool (`edit_file`, `write_file`) mirrors the pre-edit file into `.agentbackup\` under the workspace root (path configurable) before the write lands.
-- The backup directory is readable by the agent so it can reason about how the code has changed when needed.
-- Restore is conversational and needs no dedicated tool: "put that back" → the model reads the backup and writes it over the original. Because that write is itself backed up, restore is reversible — you can redo or any mixture in between.
-- The store is bounded by a per-folder soft cap (default 50 MB) with LRU pruning. **Prune never touches a backup written in the current session.**
-- On by default. No commit step, no git, no setup.
+### Backups without git
 
-## Native Toolset
+Before any write, Vii saves a copy of the original file into a plain backup folder right beside it. There are no special tools, no commit step, and no setup. It's just files on disk that you can open yourself, and the agent can read them too, so it can reason about what changed.
 
-| Tool | Class | Summary |
-| :--- | :--- | :--- |
-| `read_file_safe` | read | Size-aware read with head/tail windowing and truncation. |
-| `read_lines` | read | 1-indexed inclusive line-range read. |
-| `list_files` | read | Non-recursive listing, optional wildcard, mtimes. |
-| `fgrep` | read | Literal multi-needle search, bounded context. |
-| `grep` | read | Regex search with `i`/`g`/`m`, bounded context. |
-| `edit_file` | write | Single unique-string replacement; fails loudly on ambiguity. |
-| `write_file` | write | Create or overwrite; preferred for new files and large rewrites. |
+- **Undo is conversational.** Say "put that back" and it does.
+- **Or use the button.** Chat details lists every backed-up file, previews the diff, and restores (or un-restores) in a click.
+- **Managed for you.** The backup folder is pruned automatically when it grows too large, and never touches backups from your current chat. Nothing to clean up. On by default, and you can turn it off.
 
-## Current State
+---
 
+## Extend It With Plugins
 
+Plugins live in a folder, one `.js` file per plugin. Each one registers a tool for the model and can optionally draw a card in the chat. No build step, no framework.
 
-- Native tool loop with backup-on-write
-- Mode `/chat` `/plan` `/act` triggers
-- Projects and sessions: hierarchical tree, per-project directory bindings
-- Voice input via Web Speech API (`Ctrl+D`) - currently offline due to recent webview2 changes made by Microsoft 9/14/26
-- Multi-model routing: open router/openai and gemini as first class citizens
-- File tab for easy copy and past to chat support
-- Single Windows binary (lightweight Neutralinojs, not a bloated electron app).
+Plugin tools sit behind the same mode ceiling, permissions, and backups as built-in ones. Each plugin must be approved by you, and if the file changes, it needs approval again. Plugins run with the app's full privileges, so treat them like any program you install.
 
+Three samples ship with the app:
+
+- **proofreader**: inline edit suggestions you accept or reject in the card
+- **ask_user**: the model asks you a multiple-choice question and waits for your answer
+- **clickable_lines**: lists with per-row copy and click-to-send
+
+---
+
+## What You Get Today
+
+- **A Files tab that doubles as a featherweight IDE.** Browse the workspace, open files in your editor of choice, and run scripts in a visible terminal, all with a click.
+- Projects and chats with a sidebar tree, a workspace folder per project, pinning, archiving, and bulk cleanup
+- An optional `AGENTS.md` in a project is automatically included at the start of the first turn
+- Any OpenAI-compatible endpoint plus Gemini, with per-chat model switching, a thinking toggle, and effort levels
+- Token and cost tracking per turn and per chat, with a warning when uncached input runs hot
+- Auto-continue when a response is cut off by the output limit (off by default)
+- Readable diagnostics: per-chat wire log, tool-use audit trail, and an in-app info panel
+- Dark, light, and system themes, and a full hotkey table in Settings
+
+**Known limitation:** voice input (`Ctrl+D`) is wired up but inert in the current build, because WebView2 doesn't provide speech recognition. It will work in any runtime that does.
+
+---
+
+## Under the Hood
+
+Vii is built on Neutralinojs with a WebView2 host: plain HTML/JS, no bundler, no Node at runtime, shipped as a **portable Windows exe**. It's lightweight rather than a bloated Electron app.
+
+---
+
+## Get It
+
+Download the latest exe from [Releases](https://github.com/alanbork/viiDesktop/releases), add your API key, and pick a folder to work in.
