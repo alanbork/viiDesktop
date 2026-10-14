@@ -106,6 +106,22 @@ const PROOF = (function () {
       .split('}').join(BS + '}');
   }
 
+  /* Inverse of escapeCurlyText for the all-baked local state: markup with no
+     groups is still escaped (a literal "{" lives as "\{"), but the surface
+     and the clipboard need the visible form. Lone backslashes pass through,
+     mirroring parse(). */
+  function unescapeCurlyText(s) {
+    return String(s).replace(/\\([\\{|}])/g, '$1');
+  }
+
+  /* Local-only validity: plain text with no groups is a legal card state
+     (every edit baked), even though check/present still reject it for the
+     model. True only when no-edit-groups is the single error. */
+  function isOnlyNoGroups(cp) {
+    return !!cp && !cp.ok && Array.isArray(cp.errors) &&
+      cp.errors.length > 0 && cp.errors.every(function (e) { return e && e.type === 'no-edit-groups'; });
+  }
+
   /**
    * Parse and validate the complete input exactly like the prototype's
    * parseProofreadingMarkup: collects every error in one pass, never returns
@@ -666,7 +682,7 @@ const PROOF = (function () {
          Without it the field is invisible, because bgSurface and bgCard are the
          same plane and the card is otherwise one flat block. No
          position:relative on edit spans, so the caret renders on top. */
-      '.cp-pr-surface{min-height:3rem;padding:.375rem .5rem;border-radius:6px;cursor:text;white-space:pre-wrap;word-break:break-word;font-size:17px;line-height:2.15;color:' + t.fg + ';outline:none;caret-color:' + t.fg + ';background:' + t.bgSurface + ';box-shadow:inset 0 0 0 1px ' + t.border + '}' +
+      '.cp-pr-surface{min-height:3rem;padding:.375rem .5rem;border-radius:6px;cursor:text;white-space:pre-wrap;word-break:break-word;font-size:14.5px;line-height:2.15;color:' + t.fg + ';outline:none;caret-color:' + t.fg + ';background:' + t.bgSurface + ';box-shadow:inset 0 0 0 1px ' + t.border + '}' +
       '.cp-pr-surface.readonly{cursor:default}' +
       '.cp-pr-surface[data-alt="true"] .cp-pr-edit{cursor:text}' +
       '.cp-pr-edit{cursor:pointer;border-radius:4px;box-decoration-break:clone;-webkit-box-decoration-break:clone;display:inline;caret-color:' + t.fg + '}' +
@@ -816,7 +832,22 @@ const PROOF = (function () {
     if (!blob || typeof blob !== 'object') return fallback();
     if (typeof blob.m !== 'string' || !blob.m.length) return fallback();
     const p = parse(blob.m);
-    if (!p.ok) return fallback();
+    if (!p.ok) {
+      // All-baked plain text is valid local state (zero groups); keep it
+      // instead of falling back to the model's original, which would resurrect
+      // groups the user deliberately baked away.
+      if (isOnlyNoGroups(p)) {
+        return {
+          m: blob.m,
+          s: [],
+          c: [],
+          e: blob.e !== false,
+          r: blob.r === true,
+          o: null
+        };
+      }
+      return fallback();
+    }
     const s = Array.isArray(blob.s)
       ? p.groups.map(function (g, i) {
           const k = Number(blob.s[i]);
@@ -893,31 +924,41 @@ const PROOF = (function () {
     const legend = document.createElement('div');
     legend.className = 'cp-pr-legend';
     [
-      ['replaced', 'background:' + t.replBg + ';color:' + t.replFg + ';text-decoration:underline;text-decoration-color:' + t.replUnderline + ';text-decoration-style:dotted;text-decoration-thickness:2px;text-underline-offset:3px', 'abc'],
-      ['inserted', 'background:' + t.insBg + ';color:' + t.insFg + ';text-decoration:underline;text-decoration-color:' + t.insUnderline + ';text-decoration-style:dotted;text-decoration-thickness:2px;text-underline-offset:3px', 'abc'],
-      ['deleted', 'background:' + t.delBg + ';color:' + t.delFg + ';text-decoration:line-through;text-decoration-color:' + t.delUnderline + ';text-decoration-thickness:1.5px', 'abc'],
-      ['suggestion only', 'text-decoration:underline;text-decoration-color:' + t.suggUnderline + ';text-decoration-style:dotted;text-decoration-thickness:1.5px;text-underline-offset:3px', 'abc'],
-      ['narrow edit', 'background:' + t.replBg + ';color:' + t.replFg + ';text-decoration:underline;text-decoration-color:' + t.replUnderline + ';text-decoration-style:dotted;text-decoration-thickness:2px;text-underline-offset:2px;width:1.3em;height:1.3em;min-width:1.3em;min-height:1.3em;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;box-sizing:border-box', ','],
+      ['replaced', 'background:' + t.replBg + ';color:' + t.replFg + ';text-decoration:underline;text-decoration-color:' + t.replUnderline + ';text-decoration-style:dotted;text-decoration-thickness:2px;text-underline-offset:3px', 'replaced'],
+      ['inserted', 'background:' + t.insBg + ';color:' + t.insFg + ';text-decoration:underline;text-decoration-color:' + t.insUnderline + ';text-decoration-style:dotted;text-decoration-thickness:2px;text-underline-offset:3px', 'inserted'],
+      ['deleted', 'background:' + t.delBg + ';color:' + t.delFg + ';text-decoration:line-through;text-decoration-color:' + t.delUnderline + ';text-decoration-thickness:1.5px', 'deleted'],
+      ['suggestion only', 'text-decoration:underline;text-decoration-color:' + t.suggUnderline + ';text-decoration-style:dotted;text-decoration-thickness:1.5px;text-underline-offset:3px', 'suggestion only'],
       ['nothing inserted', 'background:' + t.noneBg + ';color:' + t.noneFg + ';width:1.1em;height:1.1em;min-width:1.1em;min-height:1.1em;padding:0;margin:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center', null],
-      ['your choice', 'box-shadow:0 0 0 1.5px ' + t.overriddenRing + ' !important;background:' + t.overriddenBg + ' !important;color:' + t.overriddenFg + ' !important;text-decoration:underline !important;text-decoration-color:' + t.overriddenRing + ' !important;text-decoration-style:dotted !important;text-decoration-thickness:2px !important;text-underline-offset:4px !important', 'abc']
+      ['your choice', 'box-shadow:0 0 0 1.5px ' + t.overriddenRing + ' !important;background:' + t.overriddenBg + ' !important;color:' + t.overriddenFg + ' !important;text-decoration:underline !important;text-decoration-color:' + t.overriddenRing + ' !important;text-decoration-style:dotted !important;text-decoration-thickness:2px !important;text-underline-offset:4px !important', 'your choice']
     ].forEach(function (item) {
       const wrap = document.createElement('span');
       wrap.style.display = 'inline-flex';
       wrap.style.alignItems = 'center';
       wrap.style.gap = '0.375rem';
-      const sw = document.createElement('span');
-      sw.className = 'cp-pr-sw';
-      sw.setAttribute('style', item[1]);
       if (item[2] == null) {
+        const pre = document.createElement('span');
+        pre.textContent = 'nothing';
+        pre.setAttribute('style', 'color:' + t.noneFg);
+        const sw = document.createElement('span');
+        sw.className = 'cp-pr-sw';
+        sw.setAttribute('style', item[1]);
         const dot = document.createElement('span');
         dot.className = 'cp-pr-caret';
         dot.setAttribute('style', 'width:5px;height:5px;border-radius:50%;margin:0;clip-path:none');
         sw.appendChild(dot);
+        const post = document.createElement('span');
+        post.textContent = 'inserted';
+        post.setAttribute('style', 'color:' + t.noneFg);
+        wrap.appendChild(pre);
+        wrap.appendChild(sw);
+        wrap.appendChild(post);
       } else {
+        const sw = document.createElement('span');
+        sw.className = 'cp-pr-sw';
+        sw.setAttribute('style', item[1]);
         sw.textContent = item[2];
+        wrap.appendChild(sw);
       }
-      wrap.appendChild(sw);
-      wrap.appendChild(document.createTextNode(item[0]));
       legend.appendChild(wrap);
     });
 
@@ -1111,6 +1152,19 @@ const PROOF = (function () {
     function buildSurface() {
       const p = parse(st.m);
       if (!p.ok) {
+        // Plain-text local state (every group baked) renders as plain editable
+        // text, not as an error. The model grammar still rejects it; this path
+        // only arises from local edits, never from present().
+        if (isOnlyNoGroups(p)) {
+          hideErr();
+          const style = p.delimiterStyle || 'curly';
+          const visible = style === 'curly' ? unescapeCurlyText(st.m) : st.m;
+          curParse = { ok: true, errors: [], parts: st.m ? [{ lit: visible, start: 0, end: st.m.length }] : [], groups: [], text: st.m, delimiterStyle: style };
+          if (st.m) surface.replaceChildren(document.createTextNode(visible));
+          else surface.replaceChildren();
+          setEditable();
+          return;
+        }
         showErr(p.errors);
         if (!curParse) surface.replaceChildren(document.createTextNode('(no valid markup to display)'));
         curParse = p;
@@ -1261,10 +1315,25 @@ const PROOF = (function () {
       const delimiterStyle = p.delimiterStyle || 'curly';
 
       function directText(el) {
+        // Full visible text of an edit span: direct text nodes plus the nested
+        // localized-underline mark (.cp-pr-ul), but never the ghost showing the
+        // replaced text (.cp-pr-old, contenteditable=false). The old version
+        // read direct children only, so any partial underline (the normal shape
+        // for minimal-span single-character edits) was silently dropped and the
+        // next input baked every such group with letters missing.
         let s = '';
         for (const c of el.childNodes) {
           if (c.nodeType === 3) s += c.data;
           else if (c.nodeName === 'BR') s += '\n';
+          else if (c.nodeType === 1) {
+            if (c.classList && (c.classList.contains('cp-pr-ghost') || c.classList.contains('cp-pr-old') || c.classList.contains('cp-pr-chev'))) continue;
+            if (c.nodeName === 'DIV') {
+              if (s.length) s += '\n';
+              s += directText(c);
+            } else {
+              s += directText(c);
+            }
+          }
         }
         return s;
       }
@@ -1318,7 +1387,15 @@ const PROOF = (function () {
         if (!seen.has(i)) bakedHere++;
       }
       const reparsed = parse(out, delimiterStyle);
-      if (!reparsed.ok || reparsed.groups.length !== newSel.length) return null;
+      if (!reparsed.ok) {
+        // Baking the final group leaves plain text: valid locally, even though
+        // the model grammar still requires at least one group.
+        if (isOnlyNoGroups(reparsed) && newSel.length === 0) {
+          return { m: out, s: [], c: [], baked: bakedHere };
+        }
+        return null;
+      }
+      if (reparsed.groups.length !== newSel.length) return null;
       return { m: out, s: newSel, c: newChosen, baked: bakedHere };
     }
 
@@ -1341,6 +1418,258 @@ const PROOF = (function () {
       else setTimeout(run, 16);
     }
 
+    /* ---- raw-markup edit engine: visible position maps to markup edit ----
+       The surface is a projection of st.m. Edits never read the DOM for
+       content; the DOM only supplies the caret as a visible offset. Every
+       keystroke becomes a string edit on st.m, then a re-parse and re-render.
+       Literals edit in place, touching an editable group bakes just that group
+       to plain text. Partial underlines are display only and never affect this. */
+    let lastPasteAt = 0;
+    function isGhostEl(el) {
+      return !!(el && el.classList && (el.classList.contains('cp-pr-ghost') || el.classList.contains('cp-pr-old') || el.classList.contains('cp-pr-chev')));
+    }
+    function subtreeLen(node) {
+      if (!node) return 0;
+      if (node.nodeType === 3) return node.data.length;
+      if (node.nodeName === 'BR') return 1;
+      if (node.nodeType === 1) {
+        if (isGhostEl(node)) return 0;
+        let n = 0;
+        for (const c of node.childNodes) n += subtreeLen(c);
+        return n;
+      }
+      return 0;
+    }
+    function firstNLen(el, n) {
+      let total = 0;
+      const kids = el.childNodes;
+      const lim = Math.max(0, Math.min(n, kids.length));
+      for (let i = 0; i < lim; i++) total += subtreeLen(kids[i]);
+      return total;
+    }
+    function visibleOffsetForPoint(node, off) {
+      if (!node) return null;
+      try {
+        if (node === surface) return firstNLen(surface, off);
+        if (!surface.contains(node)) return null;
+        let anc = node.nodeType === 3 ? node.parentNode : node;
+        while (anc && anc !== surface) {
+          if (isGhostEl(anc)) return null;
+          anc = anc.parentNode;
+        }
+        let pos = 0, found = null;
+        function visit(cur) {
+          for (const child of cur.childNodes) {
+            if (found !== null) return true;
+            if (child.nodeType === 1 && isGhostEl(child)) continue;
+            if (child === node) {
+              if (child.nodeType === 3) { found = pos + Math.max(0, Math.min(off, child.data.length)); return true; }
+              if (child.nodeName === 'BR') { found = pos; return true; }
+              found = pos + firstNLen(child, off);
+              return true;
+            }
+            if (child.nodeType === 1 && child.contains && child.contains(node)) {
+              if (visit(child)) return true;
+            } else {
+              pos += subtreeLen(child);
+            }
+          }
+          return found !== null;
+        }
+        visit(surface);
+        return found;
+      } catch (e) { return null; }
+    }
+    function getVisibleSelection() {
+      const sel = window.getSelection && window.getSelection();
+      if (!sel || !sel.rangeCount) return null;
+      const r = sel.getRangeAt(0);
+      const a = visibleOffsetForPoint(r.startContainer, r.startOffset);
+      const b = visibleOffsetForPoint(r.endContainer, r.endOffset);
+      if (a == null || b == null) return null;
+      return a <= b ? { start: a, end: b } : { start: b, end: a };
+    }
+    function escVisible(text, style) {
+      if (style === 'curly') return escapeCurlyText(text);
+      return stripMarkers(text, style);
+    }
+    function buildSegs() {
+      const p = curParse;
+      if (!p || !p.ok) return null;
+      const style = p.delimiterStyle || 'curly';
+      const segs = [];
+      let v = 0;
+      for (const part of p.parts) {
+        if (part.lit != null) {
+          const txt = part.lit;
+          segs.push({ kind: 'lit', text: txt, markup: st.m.slice(part.start, part.end), s0: v, s1: v + txt.length });
+          v += txt.length;
+        } else {
+          const idx = part.index;
+          const gd = p.groups[idx];
+          if (!gd) continue;
+          const k = st.s[idx] == null ? gd.rec : st.s[idx];
+          const chosen = st.c ? !!st.c[idx] : false;
+          const view = describeEdit(gd, k, chosen);
+          const markup = st.m.slice(gd.start, gd.end);
+          if (view.kind === 'deletion') {
+            const t = view.original || '';
+            segs.push({ kind: 'fixed-del', groupIdx: idx, text: t, markup: markup, s0: v, s1: v + t.length, k: k, chosen: chosen });
+            v += t.length;
+          } else if (view.kind === 'insertion-point') {
+            segs.push({ kind: 'fixed-ins', groupIdx: idx, text: '', markup: markup, s0: v, s1: v, k: k, chosen: chosen });
+          } else {
+            const t = view.current == null ? '' : view.current;
+            segs.push({ kind: 'edit', groupIdx: idx, text: t, markup: markup, s0: v, s1: v + t.length, k: k, chosen: chosen });
+            v += t.length;
+          }
+        }
+      }
+      return { segs: segs, total: v, style: style, parse: p };
+    }
+    function applyVisibleEdit(a, b, ins) {
+      const built = buildSegs();
+      if (!built) return null;
+      const segs = built.segs, style = built.style, p = built.parse;
+      const total = built.total;
+      a = Math.max(0, Math.min(a == null ? 0 : a, total));
+      b = Math.max(0, Math.min(b == null ? a : b, total));
+      if (a > b) { const t = a; a = b; b = t; }
+      ins = ins == null ? '' : String(ins);
+      const visibleIns = style === 'curly' ? ins : stripMarkers(ins, style);
+      const esc = function (t) { return escVisible(t, style); };
+      let out = '', newSel = [], newChosen = [], baked = 0;
+      let changed = false;
+      if (a === b && ins === '') {
+        return { m: st.m, s: st.s.slice(), c: (st.c || []).slice(), baked: 0, newCaret: a, changed: false };
+      }
+      if (a === b) {
+        let target = null, off = 0;
+        for (const sg of segs) {
+          if (sg.kind === 'lit' && sg.s0 <= a && a <= sg.s1) { target = sg; off = a - sg.s0; break; }
+        }
+        if (!target) {
+          for (const sg of segs) {
+            if (sg.kind === 'edit' && sg.s0 < a && a < sg.s1) { target = sg; off = a - sg.s0; break; }
+          }
+        }
+        if (!target) {
+          if (ins === '') return { m: st.m, s: st.s.slice(), c: (st.c || []).slice(), baked: 0, newCaret: a, changed: false };
+          let inserted = false;
+          for (const sg of segs) {
+            if (!inserted && sg.s0 >= a) { out += esc(ins); inserted = true; }
+            out += sg.markup;
+            if (sg.kind !== 'lit') { newSel.push(sg.k); newChosen.push(!!sg.chosen); }
+          }
+          if (!inserted) out += esc(ins);
+          changed = (out !== st.m);
+          const rep = parse(out, style);
+          if (!rep.ok) {
+            if (!(isOnlyNoGroups(rep) && newSel.length === 0)) return null;
+            return { m: out, s: [], c: [], baked: 0, newCaret: a + visibleIns.length, changed: changed };
+          }
+          if (rep.groups.length !== newSel.length) return null;
+          return { m: out, s: newSel, c: newChosen, baked: 0, newCaret: a + visibleIns.length, changed: changed };
+        }
+        if (target.kind === 'lit') {
+          const nt = target.text.slice(0, off) + ins + target.text.slice(off);
+          for (const sg of segs) {
+            if (sg === target) {
+              if (nt !== '') out += esc(nt);
+              changed = (nt !== target.text);
+            } else {
+              out += sg.markup;
+              if (sg.kind !== 'lit') { newSel.push(sg.k); newChosen.push(!!sg.chosen); }
+            }
+          }
+          const rep = parse(out, style);
+          if (!rep.ok) return null;
+          if (rep.groups.length !== newSel.length) return null;
+          return { m: out, s: newSel, c: newChosen, baked: 0, newCaret: a + visibleIns.length, changed: changed };
+        }
+        const nt = target.text.slice(0, off) + ins + target.text.slice(off);
+        if (nt === target.text) return { m: st.m, s: st.s.slice(), c: (st.c || []).slice(), baked: 0, newCaret: a, changed: false };
+        for (const sg of segs) {
+          if (sg === target) { out += esc(nt); baked++; changed = true; }
+          else { out += sg.markup; if (sg.kind !== 'lit') { newSel.push(sg.k); newChosen.push(!!sg.chosen); } }
+        }
+        const rep2 = parse(out, style);
+        if (!rep2.ok) {
+          if (isOnlyNoGroups(rep2) && newSel.length === 0) {
+            return { m: out, s: [], c: [], baked: baked, newCaret: a + visibleIns.length, changed: true };
+          }
+          return null;
+        }
+        if (rep2.groups.length !== newSel.length) return null;
+        return { m: out, s: newSel, c: newChosen, baked: baked, newCaret: a + visibleIns.length, changed: true };
+      }
+      let first = true;
+      for (const sg of segs) {
+        const overlap = sg.kind === 'fixed-ins' ? (sg.s0 >= a && sg.s0 < b) : (sg.s1 > a && sg.s0 < b);
+        if (!overlap) {
+          out += sg.markup;
+          if (sg.kind !== 'lit') { newSel.push(sg.k); newChosen.push(!!sg.chosen); }
+          continue;
+        }
+        const ov0 = Math.max(0, a - sg.s0);
+        const ov1 = Math.min(sg.text.length, b - sg.s0);
+        const prefix = sg.text.slice(0, ov0);
+        const suffix = sg.text.slice(Math.max(ov0, ov1));
+        if (sg.kind === 'lit') {
+          const nt = first ? prefix + ins + suffix : prefix + suffix;
+          if (nt !== '') out += esc(nt);
+          if (nt !== sg.text) changed = true;
+        } else if (sg.kind === 'edit') {
+          const gd = p.groups[sg.groupIdx];
+          const orig = gd.g[sg.k] == null ? '' : gd.g[sg.k];
+          const nt = first ? prefix + ins + suffix : suffix;
+          if (nt === orig) {
+            out += sg.markup;
+            newSel.push(sg.k); newChosen.push(!!sg.chosen);
+          } else if (nt === '' && (!first || ins === '')) {
+            baked++; changed = true;
+          } else {
+            out += esc(nt); baked++; changed = true;
+          }
+        } else if (sg.kind === 'fixed-del') {
+          const nt = first ? prefix + ins + suffix : suffix;
+          if (nt === '') { baked++; changed = true; }
+          else if (nt === sg.text && !first && ins === '') {
+            out += sg.markup; newSel.push(sg.k); newChosen.push(!!sg.chosen);
+          } else { out += esc(nt); baked++; changed = true; }
+        } else {
+          if (first && ins !== '') out += esc(ins);
+          baked++; changed = true;
+        }
+        first = false;
+      }
+      if (first && ins !== '') { out += esc(ins); changed = true; }
+      if (!changed && out === st.m) {
+        return { m: st.m, s: st.s.slice(), c: (st.c || []).slice(), baked: 0, newCaret: a + visibleIns.length, changed: false };
+      }
+      const rep = parse(out, style);
+      if (!rep.ok) {
+        if (isOnlyNoGroups(rep) && newSel.length === 0) {
+          return { m: out, s: [], c: [], baked: baked, newCaret: a + visibleIns.length, changed: true };
+        }
+        return null;
+      }
+      if (rep.groups.length !== newSel.length) return null;
+      return { m: out, s: newSel, c: newChosen, baked: baked, newCaret: a + visibleIns.length, changed: true };
+    }
+    function commitMapped(res) {
+      if (!res) return false;
+      if (!res.changed) {
+        setCaretAt(res.newCaret);
+        return true;
+      }
+      if (res.baked > 0) flashNote('Baked in ' + res.baked + (res.baked === 1 ? ' edit' : ' edits') + ' - Ctrl/\u2318+Z to undo');
+      commit('input', { m: res.m, s: res.s, c: res.c, e: st.e, r: st.r, o: null });
+      setCaretAt(res.newCaret);
+      try { surface.focus({ preventScroll: true }); } catch (e) {}
+      return true;
+    }
+
     /* ---- surface events ---- */
     surface.addEventListener('click', function (ev) {
       const span = ev.target.closest ? ev.target.closest('.cp-pr-edit') : null;
@@ -1361,12 +1690,50 @@ const PROOF = (function () {
 
     surface.addEventListener('beforeinput', function (ev) {
       if (menu) closeMenu('typing');
-      if (ev.inputType === 'insertParagraph' || ev.inputType === 'insertLineBreak') {
-        ev.preventDefault();
-        insertPlain('\n');
-      } else if (ev.inputType === 'insertText' && ev.data === '\t') {
-        ev.preventDefault();
+      const t = ev.inputType || '';
+      if (ev.isComposing || t.indexOf('insertComposition') === 0) return;
+      if (t === 'historyUndo') { ev.preventDefault(); undo(); return; }
+      if (t === 'historyRedo') { ev.preventDefault(); redo(); return; }
+      if (t.indexOf('format') === 0 || t.indexOf('insertOrderedList') === 0 || t.indexOf('insertUnorderedList') === 0 || t.indexOf('insertHorizontalRule') === 0) { ev.preventDefault(); return; }
+      if (t === 'insertText' && ev.data === '\t') { ev.preventDefault(); return; }
+      if ((t === 'insertFromPaste' || t === 'insertFromDrop') && Date.now() - lastPasteAt < 1000) { ev.preventDefault(); return; }
+      let a = null, b = null, ins = '';
+      let haveTarget = false;
+      try {
+        if (ev.getTargetRanges && curParse && curParse.ok) {
+          const trs = ev.getTargetRanges();
+          if (trs && trs.length) {
+            const tr = trs[0];
+            const s0 = visibleOffsetForPoint(tr.startContainer, tr.startOffset);
+            const s1 = visibleOffsetForPoint(tr.endContainer, tr.endOffset);
+            if (s0 != null && s1 != null) { a = Math.min(s0, s1); b = Math.max(s0, s1); haveTarget = true; }
+          }
+        }
+      } catch (e) { haveTarget = false; }
+      if (t.indexOf('insert') === 0) {
+        if (t === 'insertParagraph' || t === 'insertLineBreak') ins = '\n';
+        else if (typeof ev.data === 'string') ins = ev.data;
+        else if (ev.dataTransfer) { try { ins = ev.dataTransfer.getData('text/plain') || ''; } catch (e) { ins = ''; } }
+        else ins = '';
+        if (!haveTarget) {
+          const selR = getVisibleSelection();
+          if (!selR) return;
+          a = selR.start; b = selR.end;
+        }
+      } else if (t.indexOf('delete') === 0) {
+        ins = '';
+        if (!haveTarget) {
+          // Without a target range the browser owns word/line boundaries.
+          // Let it edit, then read back with the fixed DOM path.
+          return;
+        }
+      } else {
+        return;
       }
+      const res = applyVisibleEdit(a, b, ins);
+      if (!res) return;
+      ev.preventDefault();
+      commitMapped(res);
     });
 
     surface.addEventListener('input', function (ev) {
@@ -1377,9 +1744,17 @@ const PROOF = (function () {
 
     surface.addEventListener('paste', function (ev) {
       if (menu) closeMenu('typing');
-      ev.preventDefault();
       const txt = (ev.clipboardData && ev.clipboardData.getData('text/plain')) || '';
-      if (txt) insertPlain(txt);
+      if (!txt) { ev.preventDefault(); return; }
+      // Preventing paste cancels the following insertFromPaste beforeinput, so
+      // this is the single handling for clipboard pastes. Drops use beforeinput.
+      ev.preventDefault();
+      lastPasteAt = Date.now();
+      const selR = getVisibleSelection();
+      if (!selR) { queueCommitFromDom(); return; }
+      const res = applyVisibleEdit(selR.start, selR.end, txt);
+      if (!res) { queueCommitFromDom(); return; }
+      commitMapped(res);
     });
 
     surface.addEventListener('cut', function () {
@@ -1394,18 +1769,6 @@ const PROOF = (function () {
       if (menu) closeMenu('typing');
       queueCommitFromDom();
     });
-
-    function insertPlain(txt) {
-      const sel = window.getSelection && window.getSelection();
-      if (!sel || !sel.rangeCount) return;
-      const r = sel.getRangeAt(0);
-      r.deleteContents();
-      const node = document.createTextNode(stripMarkers(txt, curParse ? curParse.delimiterStyle : 'curly'));
-      r.insertNode(node);
-      r.setStartAfter(node); r.collapse(true);
-      sel.removeAllRanges(); sel.addRange(r);
-      queueCommitFromDom();
-    }
 
     surface.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape') {
@@ -1479,6 +1842,9 @@ const PROOF = (function () {
           r: st.r,
           o: null
         });
+      } else if (isOnlyNoGroups(p)) {
+        hideErr();
+        return;
       } else {
         commit('act', normalizeState(null, data));
       }
@@ -1487,7 +1853,10 @@ const PROOF = (function () {
 
     btnCopy.addEventListener('click', function () {
       const p = parse(st.m);
-      const txt = p.ok ? resolve(p, st.s) : st.m;
+      let txt;
+      if (p.ok) txt = resolve(p, st.s);
+      else if (isOnlyNoGroups(p)) txt = (p.delimiterStyle === 'curly') ? unescapeCurlyText(st.m) : st.m;
+      else txt = st.m;
       let done = false;
       try {
         host.copy(txt, function () {
@@ -1678,6 +2047,8 @@ const PROOF = (function () {
     stats: stats,
     stripMarkers: stripMarkers,
     escapeCurlyText: escapeCurlyText,
+    unescapeCurlyText: unescapeCurlyText,
+    isOnlyNoGroups: isOnlyNoGroups,
     detectDelimiterStyle: detectDelimiterStyle,
     renderCard: renderCard,
     buildThemeCSS: buildThemeCSS,
@@ -1871,7 +2242,10 @@ define({
     const cur = state && typeof state.m === 'string' ? state : null;
     const m = cur ? cur.m : ((data && data.text) || '');
     const p = PROOF.parse(m);
-    if (!p.ok) return { text: 'proofreader card needs a look (markup invalid)', open: true };
+    if (!p.ok) {
+      if (PROOF.isOnlyNoGroups(p)) return { text: 'plain text, every edit baked in', open: true };
+      return { text: 'proofreader card needs a look (markup invalid)', open: true };
+    }
     const sel = cur && Array.isArray(cur.s) ? cur.s : PROOF.defaultSel(p);
     const chosen = cur && Array.isArray(cur.c) ? cur.c : [];
     const st = PROOF.stats(p, sel, chosen);
