@@ -6,23 +6,21 @@ Vii feels like a regular chatbot: text first, minimal chrome. But underneath it 
 
 <img width="1920" height="1008" alt="Vii Desktop screenshot" src="https://github.com/user-attachments/assets/3f8f5733-04ff-4659-8982-cadc27173f10" />
 
-[Visual changelog →](https://github.com/alanbork/viiDesktop/wiki/Visual-changelog)
+[More screenshots and major milestones →](https://github.com/alanbork/viiDesktop/releases)
 
 ---
 
 ## Who It's For
 
-People who already hold an LLM API key and are tired of terminals: developers, researchers, writers in markdown, data people, power users. If **Claude Desktop** is too limited for file work but **opencode** is exhausting to supervise, Vii is aimed at you.
-
-It's a DIY project with no hosted tier and no onboarding for people who've never seen an API key. The audience is chosen honestly to match.
+Anybody who wants to get real work done with an LLM and not just have an entertaining chat, but doesn't want to get into the overwhelming world of installing a full development environment, and especially anyone who doesn't want to have to decipher every single command line request to decide if it's safe or not. Developers, researchers, writers in markdown, data people, power users. If **Claude Desktop** is too limited for file work but **opencode** is exhausting to supervise, Vii is aimed at you.
 
 ---
 
 ## The Idea: Chat-First, With Real Edit Power
 
-Vii is not another CLI agent. The foil is opencode: capable, provider-agnostic, and maddening to operate, with a choice between allowing everything and a permission prompt on every action. Vii drops that ceremony by moving safety elsewhere:
+Vii is not another CLI agent. The foil is opencode: capable, provider-agnostic, but maddening to operate, with the "choice" between allowing everything OR a permission prompt on every action. Vii drops that ceremony by moving safety elsewhere:
 
-- **Permission is a scope decision, not a per-edit question.** When the model reaches outside what you've granted, you get one card offering scopes (this turn, this chat, this project, forever) with a matching deny at each. Answer once; the rest of the task runs without asking again.
+- **Permission is a project decision, not a per-edit question.** When the model reaches outside what you've granted, you get one card offering scopes (this turn, this chat, this project, forever) and a deny / approve option you only answer once; the rest of the task runs without asking again.
 - **The agent has no shell.** It works through a fixed set of typed tools, so you never have to judge whether a command is safe. There is no command.
 - **Every write is backed up first.** The worst the model can do is a bad edit, and you can recover from it.
 
@@ -68,6 +66,10 @@ Before any write, Vii saves a copy of the original file into a plain backup fold
 - **Or use the button.** Chat details lists every backed-up file, previews the diff, and restores (or un-restores) in a click.
 - **Managed for you.** The backup folder is pruned automatically when it grows too large, and never touches backups from your current chat. Nothing to clean up. On by default, and you can turn it off.
 
+### Dictation support
+
+There is no doubt that telling an agent what to do with your voice is the highest bandwidth approach, and there's also no doubt that LLMs do the best voice-to-text recognition out there. We provide easy access to send your speech to a Whisper-style endpoint and then send it to the agent immediately after transcription. 
+
 ---
 
 ## Extend It With Plugins
@@ -94,8 +96,6 @@ Three samples ship with the app:
 - Auto-continue when a response is cut off by the output limit (off by default)
 - Readable diagnostics: per-chat wire log, tool-use audit trail, and an in-app info panel
 - Dark, light, and system themes, and a full hotkey table in Settings
-
-**Known limitation:** voice input (`Ctrl+D`) is wired up but inert in the current build, because WebView2 doesn't provide speech recognition. It will work in any runtime that does.
 
 ---
 
