@@ -4,7 +4,8 @@
 
 Vii feels like a regular chatbot: text first, minimal chrome. But underneath it has native read/write access to the folders you grant, as many or as few as you choose. You describe what you want, the model does the work, and if it got it wrong, you say so and it puts things back.
 
-<img width="1920" height="1008" alt="Vii Desktop screenshot" src="https://github.com/user-attachments/assets/3f8f5733-04ff-4659-8982-cadc27173f10" />
+<img alt="image" src="https://github.com/user-attachments/assets/0816e573-f7a3-46a5-bab4-87db125eb4b6" />
+
 
 [More screenshots and major milestones →](https://github.com/alanbork/viiDesktop/releases)
 
