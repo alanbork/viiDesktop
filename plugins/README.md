@@ -1,17 +1,84 @@
 # ChatPlus plugins
 
-A plugin is one plain `.js` file that registers a tool the model can call and,
-optionally, a card that renders in the chat thread where that tool's result
-row would be. There is no build step, no framework, and no import syntax: a
-plugin calls `define({...})` exactly once.
+Out of the box, Vii Desktop's agent can talk to you and work on the files in
+the folders you allow. That is what we needed when we wrote it for ourselves.
+Plugins are how it learns to do things we never imagined, and how it shows
+you things a paragraph of text can't.
+
+A plugin is one plain `.js` file in a folder. It gives the agent a new
+**tool** (a named action it can choose to take mid-conversation) and,
+optionally, a **card**: a small interactive panel that appears right in the
+chat thread, where the tool's result would otherwise show as a line of text.
+You can write one by hand, or have the agent write one if it has access to
+the plugins folder. Nothing runs until you approve it.
+
+## What plugins are good for
+
+1. **Showing instead of telling.** A sortable table, a checklist, a form, a
+chart, a preview. The agent hands you something you can use, not a wall
+of prose to re-read.
+2. **Asking you mid-task.** The agent can stop, put a question in front of
+you with buttons or a text box, and carry on once you answer.
+3. **Working through choices together.** The agent proposes; you decide, in
+   the card, on your own time. Your choices are remembered per chat, survive
+switching chats and restarting the app, and stay on your machine. They are
+never sent to the model.
+4. **Doing real work on your files, safely.** A plugin that edits files
+   through the built-in tools gets the same permission checks and automatic
+backups as the agent itself, so "put that back" still works.
+
+None of these ideas ship as plugins yet (the three samples below are the
+real ones), but they are all within reach of what a card can do: a quiz or
+flashcard deck, a palette picker, a diff reviewer, a sign-off checklist, a
+progress panel for a long job.
+
+## Three samples
+
+This folder ships three working plugins, ordered simplest to deepest.
+
+1. **Clickable lines** (`clickable-lines.js`, tool `clickable_lines`). The
+   agent gives you a list - paths, commands, config blocks - as numbered
+   rows; click a row and exactly that text lands on your clipboard. This is
+   the smallest complete plugin: roughly 125 lines, and the whole skeleton
+   (descriptor, handler, summary, render). Its result text tells the model
+   the card is already in front of you, so the model stops instead of
+   repeating the list in prose. (It also highlights the last row you copied,
+   purely as a demonstration of remembered card state.)
+
+2. **Ask user** (`ask-user.js`, tool `ask_user`). The agent pauses and asks
+   you one question with up to 12 choices (the first is its recommendation)
+   and, optionally, a box to type your own answer. The turn waits until you
+   answer. If you press Stop instead, the agent is told calmly that you
+   didn't answer. This is also the reference for any card with a text
+   field: what you've typed, and where your cursor was, survive the card
+   being redrawn, and IME composition is handled.
+
+3. **Proofreader** (`proofreader.js`, tool `proofreader`). The agent returns
+   your passage with its suggested edits marked. Each change becomes a
+   choice in the card: take the recommendation, pick an alternative, keep
+   the original, or retype it yourself. Then you copy the finished text. It
+   is the full-depth reference, for when you are building something people
+   will live in: its own dark and light colors, floating menus, undo,
+   a usage guide the agent only loads on demand, and positioned error
+   reports when the agent's edit marks are malformed.
+
+If you are building a plugin, read them in that order; each is the reference
+for one slice of the contract below. (The file name and the tool name are
+independent: one file is one plugin, and the `name` in its descriptor is
+what the model sees.)
+
+In a dev checkout all three are already in the plugins folder. Flip them on
+in **Settings > Plugins**, reload the chat page, and ask the agent to use
+one ("ask me which of these I want"). Everything below is the technical
+contract, written for whoever - or whichever agent - is building a plugin.
+
+## Finding and approving plugins
 
 The loader scans exactly one directory: `<DATA_ROOT>\plugins\`, beside
-`config\` and `sessions\`. In dev, `DATA_ROOT` is the repo root, so this
-folder - `plugins\` - IS the scan directory: the shipped samples are found
-automatically in a dev checkout and only need approval in Settings > Plugins.
-Packaged builds keep their data folder beside the exe; a `www\` path is never
-a plugin location (the resource bundle is not user-writable and gets replaced
-on update - plugins live where the user does). Open **Settings > Plugins**,
+`config\` and `sessions\`. Packaged builds keep their data folder beside
+the exe; a `www\` path is never a plugin location (the resource bundle is
+not user-writable and gets replaced on update - plugins live where the user
+does). Open **Settings > Plugins**,
 flip a plugin on, return to the chat: approval takes effect on the next
 chat-page load, and the load itself never blocks startup (see Registration
 timing).
@@ -47,7 +114,9 @@ define({
 
 - `handler(args, t)` may be async. It must return `{ text }` (a bare string is
   accepted) or `{ text, widget }`, where `widget` is any JSON-serializable
-  value handed verbatim to `render()` as `data`. Anything else is a contract
+  value handed verbatim to `render()` as `data`. The host never parses plugin
+  data and promises nothing about its shape - the card's whole shape lives in
+  your `widget` payload and your `render`. Anything else is a contract
   violation and surfaces as an error tool result.
 - The returned `text` is the model-facing tool result. Make it do real work:
   state what the card showed, what the user can still do locally, and what
@@ -77,6 +146,9 @@ define({
   path still runs through the app's allow/deny gates, and permission cards
   still work. Paths must be absolute; the built-in path validation applies.
 - `t.apiVersion` is the spec version the host implements (1).
+- `t.options` is the user's settings for this plugin: a frozen `{ key: string }`
+  map with every declared option present (see Options below). Read it per call;
+  it never changes mid-chat.
 - `t.chat` is the session id; `t.callId` is this call's id (the same id
   `host.state` is keyed by).
 - `t.signal` is an `AbortSignal` that fires when the user stops the turn.
@@ -99,6 +171,62 @@ define({
   rejects (`.stopped === true`) if the user stops the turn or leaves the
   chat. Decide explicitly what the model hears on rejection - returning a
   calm `{ text: 'The user did not answer...' }` keeps the transcript clean.
+
+## Options (user settings)
+
+A plugin can expose a few settings the user, not the model, controls: a user
+agent, an approval gate, a default folder. Declare them in a marked region
+near the top of the file, then hand the same array to `define()`:
+
+```js
+//{{PLUGIN_OPTIONS
+const PLUGIN_OPTIONS = [
+  {"key":"user_agent","label":"User agent","default":"","description":"..."},
+  {"key":"require_approval","label":"Require approval","default":"each",
+   "choices":["never","once","each"],"description":"..."}
+];
+//}}PLUGIN_OPTIONS
+
+define({ /* ... */ options: PLUGIN_OPTIONS, /* ... */ });
+```
+
+- **The region is strict JSON, by rule.** Between the markers goes exactly
+  `const PLUGIN_OPTIONS = [ ... ];` where the array is JSON, not a JS
+  literal: double quotes everywhere, no trailing commas, no comments. Both
+  marker lines must start at the beginning of a line, and a file may have one
+  region. This is what lets the settings page read the declaration as text
+  with a regex and `JSON.parse`, without running anything in your file.
+- **The two declarations must agree, and the host checks.** At load the host
+  parses the region and compares it to `define()`'s `options`. A region with no
+  `options:`, `options:` with no region, or any difference between them refuses
+  the load, with the reason in `logs\console.log` and under Settings >
+  Plugins. Pass `options: PLUGIN_OPTIONS` unchanged and they cannot differ.
+  Read your own fallbacks from the same array rather than retyping them.
+- Every value is a plain string. `key` is lowercase snake_case, at most 16
+  options per plugin. `label`, `description`, `default` and `choices` are
+  optional; with `choices` the settings page draws a dropdown instead of a
+  text box, and a stored value outside the list falls back to the default.
+  Avoid putting a line that starts with the marker text inside a description.
+- The user edits them in **Settings > Plugins**, under the plugin's row.
+  Saving a value is not an approval event: it never touches
+  `config\plugins.json`, never changes the file hash, and asks for no
+  confirmation. Values live in `config\plugin-options.json`, keyed by plugin
+  file name then option key. Blank means the default.
+- The values are read once when the chat page loads, so a change applies when
+  the user returns to the chat. Read them through `t.options` in the handler
+  or `host.options` in a card. A missing or unreadable values file means every
+  option reads as its declared default, so pick defaults you are content to
+  run with unattended (an approval gate should default to asking).
+- Fields appear in Settings the moment the plugin is switched on, and vanish
+  when it is switched off, with no reload. Nothing in your file is evaluated
+  by the settings page, and a file that is not approved at its current hash is
+  not even parsed there. Editing the declared options changes the file, so
+  that edit needs re-approval like any other.
+- Values are stored in plain text, like the rest of `config\`. Do not use
+  options for secrets you would not keep in `.storage\`.
+- The model never sees options, only whatever your handler chooses to put in
+  its result. Use them for decisions that belong to the user, and use tool
+  params for decisions that belong to the model.
 
 ## card contract (render / summary)
 
@@ -228,19 +356,5 @@ loader lists top-level files only, so **subfolders are reserved** for a
 future shared-helpers mechanism (a plugin pulling code from, say,
 `plugins/lib/`). Nothing is loaded from subfolders today; putting files
 there now is safe and will not change what loads.
-
-## Grammar belongs to the plugin
-
-The proofreader sample's inline markup - `⟪recommended‖suggestion…‖original⟫`,
-first alternative = recommendation (shown by default), last = the original
-text exactly, empty-first = deletion, empty-last = insertion, spaces
-literal, no nesting, no escapes - is the owner's `proofreader-widget-prototype`
-grammar, ported verbatim (parser, error taxonomy, merged menu entries, kind
-labels, selection carry-over). None of it is the host's business: the card's
-shape lives entirely inside one plugin's `widget` payload and its `render`.
-The host never parses plugin data and promises nothing about its shape. Swap
-the convention for a rival one and the contract does not move an inch -
-that is the point of the layer boundary, and why no host-side "edit markup"
-spec ever shipped.
 
 
